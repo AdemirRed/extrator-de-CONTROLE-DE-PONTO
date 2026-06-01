@@ -1,0 +1,22 @@
+# ─── Versões fixas testadas e compatíveis entre si ───
+# IMPORTANTE: numpy DEVE ser 1.26.x (paddle 2.6 não funciona com numpy 2.x)
+#             opencv DEVE ser 4.6.x (compatível com numpy 1.26 e paddle)
+
+numpy==1.26.4
+opencv-python==4.6.0.66
+
+# Backend web
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+aiofiles==23.2.1
+
+# Processamento e exportação
+Pillow==10.3.0
+pandas==2.2.2
+openpyxl==3.1.2
+
+# OCR — PaddleOCR (principal) + Tesseract (fallback)
+paddlepaddle==2.6.2
+paddleocr==2.7.3
+pytesseract==0.3.13

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Cartão Ponto</title>
+  <link rel="stylesheet" href="/static/css/style.css?v=20260601c" />
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- ═══ TOPBAR ═══════════════════════════════════════════════════════ -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <div>
+        <h1>Sistema de Cartão Ponto</h1>
+        <div class="sub">Gestão de Horas · RH Profissional</div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <!-- Seletor mês/ano -->
+      <select id="selMes" style="width:120px;"></select>
+      <input  id="inpAno" type="number" min="2000" max="2099" style="width:72px;" />
+
+      <div class="sep"></div>
+
+      <!-- OCR Status -->
+      <span id="ocrStatusBadge" class="engine-pill" style="font-size:11px;">OCR: verificando…</span>
+
+      <!-- Botão + Funcionário -->
+      <button class="btn btn-sm" onclick="importarJsonAntigo()" title="Importar dados exportados do sistema anterior (.json)">&#11014; Importar JSON</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modalAddFunc')">+ Funcionário</button>
+    </div>
+  </header>
+
+  <!-- ═══ CORPO ════════════════════════════════════════════════════════ -->
+  <div class="main-content">
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Menu</div>
+        <button class="sidebar-nav-item active" data-page="ponto">
+          <span class="icon">🕐</span> Cartão Ponto
+        </button>
+        <button class="sidebar-nav-item" data-page="dashboard">
+          <span class="icon">📊</span> Dashboard RH
+        </button>
+        <button class="sidebar-nav-item" data-page="ocr">
+          <span class="icon">🔍</span> Importar OCR
+        </button>
+        <button class="sidebar-nav-item" data-page="ia">
+          <span class="icon">🤖</span> Assistente IA
+        </button>
+        <button class="sidebar-nav-item" data-page="config">
+          <span class="icon">⚙</span> Configurações
+        </button>
+      </div>
+
+      <div class="sidebar-section" style="flex:1;overflow-y:auto;">
+        <div class="sidebar-label" style="display:flex;align-items:center;justify-content:space-between;padding-right:12px;">
+          Funcionários
+          <button class="btn btn-ghost btn-sm btn-icon" style="font-size:14px;padding:2px 5px;" onclick="openModal('modalAddFunc')" title="Adicionar funcionário">+</button>
+        </div>
+        <div id="sidebarFuncList" class="sidebar-func-list"></div>
+      </div>
+    </nav>
+
+    <!-- ═══ PÁGINAS ══════════════════════════════════════════════════ -->
+
+    <!-- PÁGINA: PONTO -->
+    <main class="page active" id="page-ponto">
+      <div class="toolbar-row">
+        <h2 style="font-size:15px;font-weight:600;color:var(--text-secondary);">
+          🕐 Cartão Ponto — <span id="mesAnoTitle"></span>
+        </h2>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+          <div class="dd-wrap" id="dd-relatorios">
+            <button class="btn btn-sm btn-primary" onclick="toggleDD('dd-relatorios')">📋 Relatórios ▾</button>
+            <div class="dd-menu">
+              <button class="dd-item" onclick="closeAllDD();if(State.activeFuncId)relatorioMensal(State.activeFuncId)">🖨 Mensal — Funcionário Atual</button>
+              <button class="dd-item" onclick="closeAllDD();if(State.activeFuncId)relatorioAnual([State.activeFuncId])">📊 Anual — Funcionário Atual</button>
+              <div class="dd-divider"></div>
+              <button class="dd-item" onclick="closeAllDD();relatorioMensalTodos()">🖨 Mensal — Todos</button>
+              <button class="dd-item" onclick="closeAllDD();relatorioAnual(null)">📊 Anual — Todos (c/ ranking)</button>
+            </div>
+          </div>
+          <div class="dd-wrap" id="dd-exportar">
+            <button class="btn btn-sm btn-success" onclick="toggleDD('dd-exportar')">⬇ Exportar ▾</button>
+            <div class="dd-menu">
+              <button class="dd-item" onclick="closeAllDD();if(State.activeFuncId)API.downloadExcel(State.activeFuncId,State.ano,State.mes)">⬇ Excel</button>
+              <button class="dd-item" onclick="closeAllDD();if(State.activeFuncId)API.downloadCsv(State.activeFuncId,State.ano,State.mes)">📄 CSV</button>
+              <button class="dd-item" onclick="closeAllDD();if(State.activeFuncId)API.downloadJson(State.activeFuncId,State.ano,State.mes)">{ } JSON</button>
+              <div class="dd-divider"></div>
+              <button class="dd-item" onclick="closeAllDD();API.downloadExcelTodos(State.ano,State.mes)">📋 Excel — Todos</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="pontoContainer"></div>
+    </main>
+
+    <!-- PÁGINA: DASHBOARD -->
+    <main class="page" id="page-dashboard">
+      <div class="toolbar-row">
+        <h2 style="font-size:15px;font-weight:600;color:var(--text-secondary);">📊 Dashboard RH</h2>
+        <button class="btn btn-sm" onclick="renderDashboard()" style="margin-left:auto;">↺ Atualizar</button>
+      </div>
+      <div id="dashContainer">
+        <div class="empty-state"><div class="es-icon">📊</div><div class="es-text">Clique em "Dashboard RH" no menu.</div></div>
+      </div>
+    </main>
+
+    <!-- PÁGINA: OCR -->
+    <main class="page" id="page-ocr">
+      <div class="toolbar-row">
+        <h2 style="font-size:15px;font-weight:600;color:var(--text-secondary);">🔍 Importar Cartão via OCR</h2>
+      </div>
+
+      <div class="card" style="max-width:860px;">
+        <div class="card-header">
+          <span class="card-title">📷 OCR — Importar Cartão Ponto</span>
+          <div id="ocrEngineStatus" style="display:flex;gap:6px;"></div>
+        </div>
+        <div class="card-body">
+
+          <!-- Funcionário destino -->
+          <div class="form-group">
+            <label class="form-label">Funcionário destino</label>
+            <select id="ocrFuncSelect" class="form-input" style="width:100%;">
+              <option value="">— Selecione o funcionário —</option>
+            </select>
+          </div>
+
+          <!-- Exemplo do cartão em branco -->
+          <div class="ocr-card-example" id="ocrCardExample">
+            <div class="ocr-example-header" onclick="toggleCardExample()">
+              <span>📋 Como funciona o cartão DATAPRINT — clique para ver</span>
+              <button class="btn btn-ghost btn-sm" id="btnToggleExample">▼ Mostrar</button>
+            </div>
+            <div class="ocr-example-body" id="ocrExampleBody" style="display:none;">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.7;">
+                O cartão tem <strong style="color:var(--text-secondary);">8 colunas</strong>:
+                <span class="col-badge dia-badge">DIA</span>
+                <span class="col-badge">ENT¹</span>
+                <span class="col-badge">SAI¹</span>
+                <span class="col-badge">ENT²</span>
+                <span class="col-badge">SAI²</span>
+                <span class="col-badge" style="opacity:.55">ENT³</span>
+                <span class="col-badge" style="opacity:.55">SAI³</span>
+                <span class="col-badge extra-badge">EXTRA</span><br>
+                <strong style="color:var(--green);">Par 1</strong> (ENT¹/SAI¹) = <em>Entrada + Início do intervalo</em> &nbsp;·&nbsp;
+                <strong style="color:var(--green);">Par 2</strong> (ENT²/SAI²) = <em>Fim do intervalo + Saída</em><br>
+                <strong style="color:var(--text-muted);">Par 3</strong> (ENT³/SAI³) = horas extras ou jornada estendida — <em>opcionais</em><br>
+                Os horários <strong style="color:var(--blue);">nunca são exatos</strong>: 07:02, 11:27, 13:05, 17:33 são marcações normais.
+              </div>
+              <!-- Cartão em branco simulado -->
+              <div class="blank-card-preview">
+                <div class="bcp-header">
+                  <div class="bcp-col bcp-dia-h">DIA</div>
+                  <div class="bcp-col bcp-time-h">ENT¹</div>
+                  <div class="bcp-col bcp-time-h">SAI¹</div>
+                  <div class="bcp-col bcp-time-h">ENT²</div>
+                  <div class="bcp-col bcp-time-h">SAI²</div>
+                  <div class="bcp-col bcp-time-h" style="opacity:.5;">ENT³</div>
+                  <div class="bcp-col bcp-time-h" style="opacity:.5;">SAI³</div>
+                  <div class="bcp-col bcp-extra-h">EX</div>
+                </div>
+                <div class="bcp-rows" id="bcpRows"></div>
+              </div>
+              <div style="font-size:10px;color:var(--text-muted);margin-top:6px;font-style:italic;">
+                ↑ Exemplo: dias 1–2 trabalhados normalmente · dias 3–4 livres (fim de semana/feriado) · dia 5 normal
+              </div>
+            </div>
+          </div>
+
+          <!-- Drop zones em layout de 2 colunas -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
+            <!-- Face 1 -->
+            <div class="form-group" style="margin:0;">
+              <label class="form-label">📄 Face 1 — Dias 1 a 15 <span style="color:var(--red);">*</span></label>
+              <div class="ocr-dropzone" id="ocrDropzone"
+                   onclick="document.getElementById('ocrFileInput').click()"
+                   ondragover="event.preventDefault();this.classList.add('drag-over')"
+                   ondragleave="this.classList.remove('drag-over')"
+                   ondrop="event.preventDefault();this.classList.remove('drag-over');handleDrop(event,'ocrFileInput','dropzoneLabel')">
+                <div class="dz-icon">1️⃣</div>
+                <div class="dz-text" id="dropzoneLabel">Arraste ou clique<br><small>Face 1 · dias 1–15</small></div>
+                <div class="dz-hint">JPG · PNG · PDF · TIFF</div>
+              </div>
+              <input type="file" id="ocrFileInput" accept=".jpg,.jpeg,.png,.bmp,.tiff,.tif,.pdf,.webp"
+                     style="display:none" onchange="updateDropzoneLabel('ocrFileInput','dropzoneLabel')" />
+            </div>
+
+            <!-- Face 2 (opcional) -->
+            <div class="form-group" style="margin:0;">
+              <label class="form-label">📄 Face 2 — Dias 16 a 31 <span style="color:var(--text-muted);font-size:10px;">(opcional)</span></label>
+              <div class="ocr-dropzone" id="ocrDropzone2"
+                   onclick="document.getElementById('ocrFileInput2').click()"
+                   ondragover="event.preventDefault();this.classList.add('drag-over')"
+                   ondragleave="this.classList.remove('drag-over')"
+                   ondrop="event.preventDefault();this.classList.remove('drag-over');handleDrop(event,'ocrFileInput2','dropzoneLabel2')">
+                <div class="dz-icon" style="opacity:.6;">2️⃣</div>
+                <div class="dz-text" id="dropzoneLabel2">Arraste ou clique<br><small>Face 2 · dias 16–31</small></div>
+                <div class="dz-hint">Opcional — deixe em branco se não tiver</div>
+              </div>
+              <input type="file" id="ocrFileInput2" accept=".jpg,.jpeg,.png,.bmp,.tiff,.tif,.pdf,.webp"
+                     style="display:none" onchange="updateDropzoneLabel('ocrFileInput2','dropzoneLabel2')" />
+            </div>
+          </div>
+
+          <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-ocr" id="btnProcessarOcr" onclick="processarOcr()">
+              🔍 Processar OCR
+            </button>
+            <button class="btn" id="btnProcessarIA" onclick="processarOcrIA()"
+                    style="background:#1a0d2e;color:var(--purple);border-color:#3d1b5a;">
+              🤖 Tentar com IA (experimental)
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="limparOcr()">✕ Limpar</button>
+            <span style="font-size:11px;color:var(--text-muted);">Mínimo 150 DPI · Revise antes de importar</span>
+          </div>
+          <div style="margin-top:10px;padding:8px 12px;background:var(--yellow-bg);border:1px solid #5a3e00;border-radius:6px;font-size:11px;color:var(--yellow);">
+            ⚠️ <b>OCR com IA é experimental.</b> A IA (LLM) geralmente lê <b>pior</b> que o OCR tradicional em cartões dot-matrix, e exige um modelo com <b>visão</b> (ex.: llama3.2-vision) configurado em ⚙ Configurações. Use o OCR normal como principal; a IA é só uma tentativa alternativa.
+          </div>
+        </div>
+      </div>
+
+      <div id="ocrResult" style="max-width:900px;"></div>
+    </main>
+
+
+    <!-- PÁGINA: CONFIG -->
+    <main class="page" id="page-config">
+      <div class="toolbar-row">
+        <h2 style="font-size:15px;font-weight:600;color:var(--text-secondary);">⚙ Configurar Horários de Trabalho</h2>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <!-- Linha de configurações gerais -->
+          <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-end;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px;">
+            <div>
+              <label class="form-label">Início Adicional Noturno</label>
+              <input id="cfgNoturnoInicio" class="form-input" type="text" placeholder="22:00" style="width:110px;font-family:var(--font-mono);" />
+            </div>
+            <div>
+              <label class="form-label">Extra em Feriado</label>
+              <select id="cfgFeriadoRate" class="form-input" style="width:160px;">
+                <option value="50">50% das horas</option>
+                <option value="100">100% das horas</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="salvarConfigCompleta()">✓ Salvar Configuração</button>
+            <button class="btn" onclick="restaurarEscalaPadrao()">↺ Restaurar Padrão</button>
+          </div>
+
+          <!-- Tabela de escala por dia-da-semana -->
+          <div style="overflow-x:auto;">
+            <table class="sched-table" style="width:100%;border-collapse:collapse;font-size:13px;min-width:680px;">
+              <thead>
+                <tr>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">Dia</th>
+                  <th style="text-align:center;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">Ativo</th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">Entrada</th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">Início Intervalo</th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">Fim Intervalo</th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">Saída</th>
+                  <th style="text-align:right;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">Carga Prevista</th>
+                </tr>
+              </thead>
+              <tbody id="schedTableBody"></tbody>
+            </table>
+          </div>
+
+          <!-- Export / Import banco de dados -->
+          <div style="display:flex;gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+            <button class="btn" onclick="exportarBancoDados()">💾 Exportar Banco de Dados</button>
+            <button class="btn" onclick="document.getElementById('importDbFile').click()">📂 Importar Banco de Dados</button>
+            <input type="file" id="importDbFile" accept=".json,.data" style="display:none" onchange="importarBancoDados(event)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Feriados -->
+      <div class="card" style="margin-top:16px;max-width:560px;">
+        <div class="card-header">
+          <span class="card-title">🗓 Feriados</span>
+          <button class="btn btn-sm btn-primary" onclick="adicionarFeriado()">+ Adicionar</button>
+        </div>
+        <div class="card-body" id="feriadosList">
+          <div style="color:var(--text-muted);font-size:13px;">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- Assistente IA (Ollama) -->
+      <div class="card" style="margin-top:16px;max-width:560px;">
+        <div class="card-header">
+          <span class="card-title">🤖 Assistente IA (Ollama)</span>
+          <span id="iaStatusBadge" class="engine-pill off" style="font-size:11px;">Não configurado</span>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Endpoint (Base URL)</label>
+            <input id="iaBaseUrl" class="form-input" type="text" placeholder="https://ollama.com/v1" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">API Key</label>
+            <input id="iaApiKey" class="form-input" type="password" placeholder="cole a chave aqui (fica salva localmente)" />
+            <div id="iaKeyInfo" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Modelo</label>
+            <div style="display:flex;gap:8px;">
+              <input id="iaModel" class="form-input" type="text" placeholder="ex.: gpt-oss:120b:cloud" style="flex:1;" list="iaModelList" />
+              <datalist id="iaModelList"></datalist>
+              <button class="btn btn-sm" onclick="iaCarregarModelos()">↻ Listar</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn btn-primary" onclick="iaSalvar()">✓ Salvar IA</button>
+            <button class="btn" onclick="iaTestar()">🔌 Testar Conexão</button>
+          </div>
+          <div id="iaTesteResultado" style="font-size:12px;margin-top:8px;color:var(--text-secondary);"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- PÁGINA: ASSISTENTE IA -->
+    <main class="page" id="page-ia">
+      <div class="toolbar-row">
+        <h2 style="font-size:15px;font-weight:600;color:var(--text-secondary);">🤖 Assistente IA — Perguntas sobre o Ponto</h2>
+        <span id="iaPageStatus" class="engine-pill off" style="margin-left:auto;font-size:11px;">verificando…</span>
+      </div>
+
+      <div class="card" style="max-width:820px;">
+        <div class="card-body">
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <input id="iaPergunta" class="form-input" type="text" style="flex:1;"
+                   placeholder="Ex.: Quantas horas extras o Ademir fez em maio?"
+                   onkeydown="if(event.key==='Enter')iaPerguntar()" />
+            <button class="btn btn-primary" id="iaBtnPerguntar" onclick="iaPerguntar()">Perguntar</button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+            <button class="btn btn-sm btn-ghost" onclick="iaSugestao(this)">Quem fez mais horas extras este ano?</button>
+            <button class="btn btn-sm btn-ghost" onclick="iaSugestao(this)">Resuma o desempenho de cada funcionário.</button>
+            <button class="btn btn-sm btn-ghost" onclick="iaSugestao(this)">Quem trabalhou mais à noite?</button>
+            <button class="btn btn-sm btn-ghost" onclick="iaSugestao(this)">Qual funcionário tem maior saldo de horas?</button>
+          </div>
+          <div id="iaResposta" style="background:var(--bg-raised);border:1px solid var(--border);border-radius:8px;
+               padding:16px;min-height:120px;font-size:14px;line-height:1.6;white-space:pre-wrap;color:var(--text-primary);">
+            <span style="color:var(--text-muted);">As respostas da IA aparecerão aqui. Configure a API key e o modelo em ⚙ Configurações.</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">
+            A IA responde com base nos dados do ano selecionado (<span id="iaAnoLabel"></span>). Sempre confira informações sensíveis.
+          </div>
+        </div>
+      </div>
+    </main>
+
+  </div><!-- .main-content -->
+</div><!-- .app-wrapper -->
+
+<!-- ═══ MODAL: ADICIONAR FUNCIONÁRIO ═════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="modalAddFunc" onclick="if(event.target===this)closeModal('modalAddFunc')">
+  <div class="modal">
+    <div class="modal-header">
+      👤 Novo Funcionário
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modalAddFunc')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nome completo *</label>
+        <input id="inputNomeFunc" class="form-input" type="text" placeholder="Ex.: João da Silva"
+               onkeydown="handleModalKey(event,'modalAddFunc')" />
+      </div>
+      <div style="display:flex;gap:12px;">
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">Matrícula</label>
+          <input id="inputMatricula" class="form-input" type="text" placeholder="000001" />
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">Cargo</label>
+          <input id="inputCargo" class="form-input" type="text" placeholder="Ex.: Operador" />
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;">
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">Horário (entrada-saída)</label>
+          <input id="inputJornada" class="form-input" type="text" placeholder="07:00-17:30" value="07:00-17:30" />
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">Intervalo (início-fim)</label>
+          <input id="inputIntervalo" class="form-input" type="text" placeholder="11:30-13:00" value="11:30-13:00" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalAddFunc')">Cancelar</button>
+      <button class="btn btn-primary" onclick="adicionarFuncionarioCompleto()">+ Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- Scripts -->
+<script src="/static/js/utils.js?v=20260601g"></script>
+<script src="/static/js/api.js?v=20260601g"></script>
+<script src="/static/js/reports.js?v=20260601g"></script>
+<script src="/static/js/app.js?v=20260601g"></script>
+<script>
+  function updateTitle() {
+    const el = document.getElementById("mesAnoTitle");
+    if (el) el.textContent = `${MESES_NOMES[State.mes-1]} ${State.ano}`;
+  }
+
+  // Funcionário completo (com todos os campos do modal)
+  async function adicionarFuncionarioCompleto() {
+    const nome      = document.getElementById("inputNomeFunc")?.value?.trim();
+    const matricula = document.getElementById("inputMatricula")?.value?.trim();
+    const cargo     = document.getElementById("inputCargo")?.value?.trim();
+    const jornada   = document.getElementById("inputJornada")?.value?.trim() || "07:00-17:00";
+    const intervalo = document.getElementById("inputIntervalo")?.value?.trim() || "12:00-13:00";
+    const [intIni, intFim] = intervalo.split("-");
+
+    if (!nome) { toast("Informe o nome do funcionário", "error"); return; }
+    try {
+      const f = await API.criarFuncionario({
+        nome, matricula: matricula||null, cargo: cargo||null,
+        jornada, int_inicio: intIni||"12:00", int_fim: intFim||"13:00",
+      });
+      State.funcionarios.push(f);
+      State.activeFuncId = f.id;
+
+      // Atualiza select do OCR
+      const sel = document.getElementById("ocrFuncSelect");
+      if (sel) {
+        const opt = document.createElement("option");
+        opt.value = f.id; opt.textContent = f.nome;
+        sel.appendChild(opt);
+      }
+
+      ["inputNomeFunc","inputMatricula","inputCargo"].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = "";
+      });
+      closeModal("modalAddFunc");
+      renderAll();
+      toast(`✓ ${f.nome} adicionado!`, "success");
+    } catch (e) {
+      toast("⚠ " + e.message, "error");
+    }
+  }
+
+  // Popular select OCR — chamado por renderAll() sem override
+  function populateOcrSelect() {
+    const sel = document.getElementById("ocrFuncSelect");
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Selecione o funcionário —</option>';
+    State.funcionarios.forEach(f => {
+      const o = document.createElement("option");
+      o.value = f.id; o.textContent = f.nome;
+      sel.appendChild(o);
+    });
+  }
+
+  // Adicionar feriado na config
+  async function adicionarFeriado() {
+    const data = prompt("Data do feriado (AAAA-MM-DD):");
+    if (!data) return;
+    const nome = prompt("Nome do feriado (opcional):") || null;
+    try {
+      await API.criarFeriado(data, nome);
+      State.feriados[data] = nome || true;
+      renderFeriadosList();
+      toast("✓ Feriado adicionado");
+    } catch (e) { toast("⚠ " + e.message, "error"); }
+  }
+
+  async function renderFeriadosList() {
+    const div = document.getElementById("feriadosList");
+    if (!div) return;
+    try {
+      const list = await API.listarFeriados(State.ano);
+      if (!list.length) { div.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">Nenhum feriado cadastrado para ${State.ano}.</div>`; return; }
+      div.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+        ${list.map(f=>`<tr style="border-bottom:1px solid var(--border-light);">
+          <td style="padding:6px 4px;font-family:var(--font-mono);">${f.data}</td>
+          <td style="padding:6px 4px;">${f.nome||"—"}</td>
+          <td style="padding:6px 4px;text-align:right;">
+            <button class="btn btn-sm btn-danger" onclick="removerFeriado('${f.data}')">✕</button>
+          </td>
+        </tr>`).join("")}
+      </table>`;
+    } catch (_) {}
+  }
+
+  async function removerFeriado(data) {
+    await API.removerFeriado(data);
+    delete State.feriados[data];
+    renderFeriadosList();
+    toast("Feriado removido");
+  }
+
+  // Importar JSON do sistema antigo
+  async function importarJsonAntigo() {
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = ".json";
+    input.onchange = async () => {
+      const file = input.files[0]; if (!file) return;
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        const fd = new FormData();
+        fd.append("file", new Blob([text], {type:"application/json"}), file.name);
+        const resp = await fetch("/api/importar-json", {method:"POST", body: fd});
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.detail || "Erro"); }
+        const res = await resp.json();
+        toast(`Importados: ${res.funcionarios} funcionários, ${res.registros} registros`, "success");
+        await loadFuncionarios();
+        populateOcrSelect();
+        renderAll();
+      } catch(e) { toast("Erro ao importar: " + e.message, "error"); }
+    };
+    input.click();
+  }
+</script>
+</body>
+</html>

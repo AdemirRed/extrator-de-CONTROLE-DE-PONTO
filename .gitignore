@@ -1,0 +1,39 @@
+# ─── Pacotes gerados (grandes) ───
+CONTROLE_DE_PONTO_PORTATIL/
+CONTROLE_DE_PONTO_PORTATIL.zip
+*.zip
+
+# ─── Python ───
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ─── Dados / uploads / saídas (não versionar dados reais) ───
+database/ponto.json
+database/*.bak.json
+database/*.db
+database/*.db-*
+uploads/*
+exports/*
+ocr_templates/*
+!uploads/.gitkeep
+!exports/.gitkeep
+
+# ─── Imagens de teste de cartão ───
+*.jpeg
+*.jpg
+*.png
+*.pdf
+
+# ─── Sistema ───
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ─── Segurança: nunca subir chaves ───
+config_ia.json
+*.key
+*.secret
